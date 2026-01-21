@@ -1,0 +1,13 @@
+## Interface: 120000, 120001
+## Title: WOWRN - BiS & Tier List
+## Notes: Shows Best-in-Slot and Tier List indicators on item tooltips. Includes a catalog browser by class/spec.
+## Author: Sahra Vadrot
+## Version: 1.0.0
+## IconTexture: Interface\AddOns\WOWRN\Textures\wowrn-logo
+## X-Curse-Project-ID: 1439773
+## SavedVariables: WOWRNSettings
+
+Data.lua
+Core.lua
+Minimap.lua
+CatalogUI.lua

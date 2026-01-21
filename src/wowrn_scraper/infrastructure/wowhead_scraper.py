@@ -187,13 +187,12 @@ class WowheadScraper:
             lis = re.findall(r"\[li\](.*?)\[/li\]", ol_content, re.DOTALL)
             for li in lis:
                 iid = self._parse_item_link(li)
-                clean_text = re.sub(r"\[.*?\]", "", li).strip()
                 if iid:
                     chips.append(
                         CartelChipItem(
                             id=iid,
                             name=item_mapping.get(iid, f"Item {iid}"),
-                            details=clean_text,
+                            details="Myth",
                         )
                     )
         return chips

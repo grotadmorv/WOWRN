@@ -1,7 +1,11 @@
-
 # WOWRN - World of Warcraft Addon instant gear-ranking 
 
 > **"Is it worth being WORN?"**
+
+
+[<img src="https://i.imgur.com/gDsxsE4.png">](https://github.com/sahra-vadrot/WOWRN)
+
+[<img src="https://imgur.com/bEzfouT.png">](https://github.com/sahra-vadrot/WOWRN)
 
 **WOWRN** is a lightweight addon for **World of Warcraft: Midnight (12.0)**. It provides instant gear-ranking clarity by injecting Tier List data from top theorycrafting sites directly into your in-game tooltips.
 
