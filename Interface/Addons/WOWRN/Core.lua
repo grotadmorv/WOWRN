@@ -191,6 +191,7 @@ end
 
 local function OnTooltipSetItem(tooltip)
     if not tooltip or tooltip:IsForbidden() then return end
+    if WOWRNSettings and WOWRNSettings.enableTooltips == false then return end
 
     local _, itemLink = tooltip:GetItem()
     if not itemLink then return end
