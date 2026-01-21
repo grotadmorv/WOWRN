@@ -7,15 +7,35 @@
 
 [<img src="https://imgur.com/bEzfouT.png">](https://github.com/sahra-vadrot/WOWRN)
 
-**WOWRN** is a lightweight addon for **World of Warcraft: Midnight (12.0)**. It provides instant gear-ranking clarity by injecting Tier List data from top theorycrafting sites directly into your in-game tooltips.
+**WOWRN** is a lightweight, high-performance addon for **World of Warcraft (Retail/Midnight)** that simplifies gear evaluation. No more tab-alt'ing to guides during your raid or dungeon! We provide a complete Top Tier Items Catalog for each class, regularly updated using reliable theorycrafting sources such as Wowhead, Icy Veins, and Bloodmallet.
 
-## Features
 
+## Key Features
+
+### Instant BiS Indicators
+Hover over any gear item to see if it's considered "Best-in-Slot" for your current class and specialization. 
+- Supports multiple contexts: **Overall**, **Raid**, and **Mythic+**.
+- Colored indicators for immediate visual clarity.
+
+### Trinket Tier Lists
+Trinkets can be complex. WOWRN labels them with their respective tiers (**S, A, B, C, D**) directly on the tooltip, based on top-tier theorycrafting data.
+
+### Cartel Chips Integration
+Specialized tooltips for Puzzling Cartel Chips and other unique gear mechanics, including helpful details on when they are most effective.
+
+### In-game Catalog
+Use `/wowrn` or `/rn` to open a searchable catalog of all ranked items. Browse by Class and Specialization to plan your next upgrade path.
+
+### Minimap & Slash Commands
+- **Minimap Button:** Quick access to the Catalog UI.
+- **Slash Commands:** `/wowrn` to toggle UI, `/wowrn minimap` to toggle the button.
+
+# TECH - Getting Started
+
+## How it Works
 - **Automated Scraping:** Fetches data from **Wowhead**, **Icy Veins** (WIP), and **Bloodmallet** (WIP).
 - **Data-Driven:** Generates a Lua database table for instant lookup.
 - **Lightweight:** No in-game calculation, just a static data lookup.
-
-## Getting Started
 
 ### Prerequisites
 
