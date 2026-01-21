@@ -223,6 +223,10 @@ local function HandleSlashCommand(msg)
         print("  |cFF00FF00/wowrn catalog|r - Open the tier list catalog")
         print("  |cFF00FF00/wowrn minimap|r - Toggle minimap button")
         print("  |cFF00FF00/wowrn help|r - Show this help message")
+    elseif cmd == "options" or cmd == "config" then
+        if ADDON_NS.Options then
+            ADDON_NS.Options:Open()
+        end
     else
         print("|cFFFFD700[WOWRN]|r Unknown command: " .. cmd)
         print("  Type |cFF00FF00/wowrn help|r for available commands")
@@ -236,12 +240,14 @@ SlashCmdList["WOWRN"] = HandleSlashCommand
 local function OnPlayerLogin()
     WOWRN:GetPlayerClassSpec()
     WOWRNSettings = WOWRNSettings or {}
+    WOWRNSettings.enableTooltips = WOWRNSettings.enableTooltips ~= false
     if ADDON_NS.MinimapButton then
         ADDON_NS.MinimapButton:Create()
     end
-    
+    if ADDON_NS.Options then
+        ADDON_NS.Options:Initialize()
+    end
     print("|cFFFFD700[WOWRN]|r Loaded! Type |cFF00FF00/wowrn|r to open the catalog")
-    print("|cFFFFD700[WOWRN]|r Class: " .. (playerClass or "unknown") .. " | Spec: " .. (playerSpec or "unknown"))
 end
 
 local function OnSpecChange()

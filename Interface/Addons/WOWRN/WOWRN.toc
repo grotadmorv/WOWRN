@@ -11,3 +11,4 @@ Data.lua
 Core.lua
 Minimap.lua
 CatalogUI.lua
+Options.lua
