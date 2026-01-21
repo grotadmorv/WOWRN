@@ -1,0 +1,8 @@
+src/wowrn_scraper/__pycache__/*
+src/wowrn_scraper/wowhead/__pycache__/*
+src/wowrn_scraper/bloodmallet/__pycache__/*
+src/wowrn_scraper/icyveins/__pycache__/*
+src/wowrn_scraper/wowhead/pve_data.json
+src/wowrn_scraper/bloodmallet/pve_data.json
+src/wowrn_scraper/icyveins/pve_data.json
+Interface/Addons/WOWRN/Data.lua
