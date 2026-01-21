@@ -1,7 +1,7 @@
 @echo off
-echo Running all scrapers...
-cd src/wowrn_scraper
-python run_scrapers.py
-echo Generating Lua file...
-python generate_lua.py
+echo Running WoW gear scraper...
+cd src
+set PYTHONPATH=%CD%
+python -m wowrn_scraper.run_scrapers
+cd ..
 pause

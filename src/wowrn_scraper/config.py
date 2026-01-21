@@ -1,6 +1,8 @@
-WOW_CLASSES = {
+from typing import Dict, List
+
+WOW_CLASSES: Dict[str, List[str]] = {
     "death-knight": ["blood", "frost", "unholy"],
-    "demon-hunter": ["havoc", "vengeance"],
+    "demon-hunter": ["havoc", "vengeance", "devourer"],
     "druid": ["balance", "feral", "guardian", "restoration"],
     "evoker": ["augmentation", "devastation", "preservation"],
     "hunter": ["beast-mastery", "marksmanship", "survival"],

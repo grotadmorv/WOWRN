@@ -1,17 +1,15 @@
-.PHONY: all wowhead icyveins bloodmallet
+PYTHONPATH := src
+PYTHON := python
 
-all:
-	@echo "Running all scrapers..."
-	cd src/wowrn_scraper && python run_scrapers.py && python generate_lua.py
+.PHONY: all scrape clean
 
-wowhead:
-	@echo "Running Wowhead scraper..."
-	cd src/wowrn_scraper/wowhead && python main.py
+all: scrape
 
-icyveins:
-	@echo "Running IcyVeins scraper..."
-	cd src/wowrn_scraper/icyveins && python main.py
+scrape:
+	@echo "Running WoW gear scraper..."
+	set PYTHONPATH=$(PYTHONPATH) && $(PYTHON) -m wowrn_scraper.run_scrapers
 
-bloodmallet:
-	@echo "Running Bloodmallet scraper..."
-	cd src/wowrn_scraper/bloodmallet && python main.py
+clean:
+	@echo "Cleaning up __pycache__..."
+	find . -type d -name "__pycache__" -exec rm -rf {} +
+	rm -rf src/wowrn_scraper/data/*

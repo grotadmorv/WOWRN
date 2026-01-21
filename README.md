@@ -3,11 +3,11 @@
 
 > **"Is it worth being WORN?"**
 
-**WOWRN** is a lightweight, data-driven addon for **World of Warcraft: Midnight (12.0)**. It provides instant gear-ranking clarity by injecting Tier List data from top theorycrafting sites directly into your in-game tooltips.
+**WOWRN** is a lightweight addon for **World of Warcraft: Midnight (12.0)**. It provides instant gear-ranking clarity by injecting Tier List data from top theorycrafting sites directly into your in-game tooltips.
 
 ## Features
 
-- **Automated Scraping:** Fetches data from **Wowhead**, **Icy Veins** (placeholder), and **Bloodmallet** (placeholder).
+- **Automated Scraping:** Fetches data from **Wowhead**, **Icy Veins** (WIP), and **Bloodmallet** (WIP).
 - **Data-Driven:** Generates a Lua database table for instant lookup.
 - **Lightweight:** No in-game calculation, just a static data lookup.
 
@@ -45,6 +45,15 @@ make all
 2. JSON data is saved to `src/wowrn_scraper/wowhead/pve_data.json`.
 3. `generate_lua.py` converts the JSON to a Lua table.
 4. The final file is saved to: `Interface/Addons/WOWRN/Data.lua`.
+
+## Install the AddOn
+
+Copy the `Interface/Addons/WOWRN` folder to your WoW addons directory.
+
+Features:
+- Shows BiS info when hovering items (Overall/Raid/Mythic+)
+- Displays trinket tier (S/A/B/C/D/F)
+- Auto-detects your class and specialization
 
 ## Development
 
