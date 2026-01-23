@@ -3,7 +3,7 @@
 > **"Is it worth being WORN?"**
 
 
-[<img src="https://i.imgur.com/gDsxsE4.png">](https://github.com/sahra-vadrot/WOWRN)
+[<img src="https://i.imgur.com/SStkgVc.png">](https://github.com/sahra-vadrot/WOWRN)
 
 [<img src="https://imgur.com/bEzfouT.png">](https://github.com/sahra-vadrot/WOWRN)
 
