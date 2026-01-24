@@ -3,9 +3,9 @@
 > **"Is it worth being WORN?"**
 
 
-[<img src="https://i.imgur.com/SStkgVc.png">](https://github.com/sahra-vadrot/WOWRN)
+[<img src="https://i.imgur.com/SStkgVc.png">](https://github.com/grotadmorv/WOWRN)
 
-[<img src="https://imgur.com/bEzfouT.png">](https://github.com/sahra-vadrot/WOWRN)
+[<img src="https://imgur.com/bEzfouT.png">](https://github.com/grotadmorv/WOWRN)
 
 **WOWRN** is a lightweight, high-performance addon for **World of Warcraft (Retail/Midnight)** that simplifies gear evaluation. No more tab-alt'ing to guides during your raid or dungeon! We provide a complete Top Tier Items Catalog for each class, regularly updated using reliable theorycrafting sources such as Wowhead, Icy Veins, and Bloodmallet.
 
