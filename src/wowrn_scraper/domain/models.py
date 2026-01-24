@@ -6,6 +6,9 @@ from typing import Dict, List, Optional
 class Item:
     id: str
     name: str
+    source_type: Optional[str] = None 
+    boss_name: Optional[str] = None
+    location_name: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -65,7 +68,14 @@ class ScrapingResult:
                         "url": spec_data.url,
                         "bis": {
                             ctx: [
-                                {"slot": item.slot, "id": item.id, "name": item.name}
+                                {
+                                    "slot": item.slot,
+                                    "id": item.id,
+                                    "name": item.name,
+                                    "source_type": item.source_type,
+                                    "boss_name": item.boss_name,
+                                    "location_name": item.location_name,
+                                }
                                 for item in bis.items
                             ]
                             for ctx, bis in spec_data.bis_lists.items()
@@ -76,7 +86,16 @@ class ScrapingResult:
                         ],
                         "trinkets": (
                             {
-                                tier: [{"id": t.id, "name": t.name} for t in items]
+                                tier: [
+                                    {
+                                        "id": t.id,
+                                        "name": t.name,
+                                        "source_type": t.source_type,
+                                        "boss_name": t.boss_name,
+                                        "location_name": t.location_name,
+                                    }
+                                    for t in items
+                                ]
                                 for tier, items in spec_data.trinket_tier_list.tiers.items()
                             }
                             if spec_data.trinket_tier_list

@@ -192,12 +192,12 @@ local function CreateCustomTooltip()
     tooltip.separator = separator
 
     local infoContainer = CreateFrame("Frame", nil, tooltip)
-    infoContainer:SetSize(296, 60)
+    infoContainer:SetSize(296, 130)
     infoContainer:SetPoint("TOP", separator, "BOTTOM", 0, -8)
     tooltip.infoContainer = infoContainer
 
     tooltip.infoLines = {}
-    for i = 1, 4 do
+    for i = 1, 6 do
         local line = CreateFrame("Frame", nil, infoContainer)
         line:SetSize(296, 18)
         line:SetPoint("TOP", infoContainer, "TOP", 0, -(i-1) * 20)
@@ -289,6 +289,45 @@ local function ShowCustomTooltip(parent, itemData)
         lineIndex = lineIndex + 1
     end
 
+    if itemData.source_type then
+        if itemData.source_type == "quest, vendor or crafted" then
+            tooltip.infoLines[lineIndex].label:SetText("Source")
+            tooltip.infoLines[lineIndex].value:SetText("Quest vendor or crafted Item")
+            tooltip.infoLines[lineIndex].value:SetTextColor(1, 0.5, 0)
+            tooltip.infoLines[lineIndex]:Show()
+            lineIndex = lineIndex + 1
+        elseif itemData.source_type == "crafted" then
+            tooltip.infoLines[lineIndex].label:SetText("Source")
+            tooltip.infoLines[lineIndex].value:SetText("Crafted Item")
+            tooltip.infoLines[lineIndex].value:SetTextColor(1, 0.5, 0)
+            tooltip.infoLines[lineIndex]:Show()
+            lineIndex = lineIndex + 1
+        elseif itemData.source_type == "vendor" then
+            tooltip.infoLines[lineIndex].label:SetText("Source")
+            tooltip.infoLines[lineIndex].value:SetText("Vendor Item")
+            tooltip.infoLines[lineIndex].value:SetTextColor(0.12, 1, 0)
+            tooltip.infoLines[lineIndex]:Show()
+            lineIndex = lineIndex + 1
+        elseif itemData.source_type == "quest" then
+            tooltip.infoLines[lineIndex].label:SetText("Source")
+            tooltip.infoLines[lineIndex].value:SetText("Quest Reward")
+            tooltip.infoLines[lineIndex].value:SetTextColor(0, 0.44, 0.87)
+            tooltip.infoLines[lineIndex]:Show()
+            lineIndex = lineIndex + 1
+        elseif itemData.boss_name and itemData.location_name then
+            tooltip.infoLines[lineIndex].label:SetText("Dropped By")
+            tooltip.infoLines[lineIndex].value:SetText(itemData.boss_name)
+            tooltip.infoLines[lineIndex].value:SetTextColor(0.62, 0.62, 0.62)
+            tooltip.infoLines[lineIndex]:Show()
+            lineIndex = lineIndex + 1
+            tooltip.infoLines[lineIndex].label:SetText("Location")
+            tooltip.infoLines[lineIndex].value:SetText(itemData.location_name)
+            tooltip.infoLines[lineIndex].value:SetTextColor(0.62, 0.62, 0.62)
+            tooltip.infoLines[lineIndex]:Show()
+            lineIndex = lineIndex + 1
+        end
+    end
+
     tooltip.infoLines[lineIndex].label:SetText("Data Source")
     tooltip.infoLines[lineIndex].value:SetText("WoWHead")
     tooltip.infoLines[lineIndex].value:SetTextColor(1, 0.5, 0)
@@ -333,6 +372,9 @@ local function BuildItemList()
                     slot = item.slot,
                     type = "bis",
                     context = selectedContext,
+                    source_type = item.source_type,
+                    boss_name = item.boss_name,
+                    location_name = item.location_name,
                 })
             end
         end
@@ -345,6 +387,9 @@ local function BuildItemList()
                         name = item.name,
                         tier = tier,
                         type = "trinket",
+                        source_type = item.source_type,
+                        boss_name = item.boss_name,
+                        location_name = item.location_name,
                     })
                 end
             end

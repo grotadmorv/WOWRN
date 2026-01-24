@@ -122,6 +122,9 @@ function WOWRN:GetBisInfo(itemId)
                         type = "bis",
                         context = context,
                         slot = item.slot,
+                        source_type = item.source_type,
+                        boss_name = item.boss_name,
+                        location_name = item.location_name,
                     })
                 end
             end
@@ -135,6 +138,9 @@ function WOWRN:GetBisInfo(itemId)
                     table.insert(bisInfo, {
                         type = "trinket",
                         tier = tier,
+                        source_type = item.source_type,
+                        boss_name = item.boss_name,
+                        location_name = item.location_name,
                     })
                 end
             end
@@ -171,6 +177,13 @@ function WOWRN:AddTooltipLine(tooltip, itemId)
                 info.slot
             )
             tooltip:AddLine(text)
+            
+            if info.source_type then
+                local dropText = self:GetDropLocationText(info.source_type, info.boss_name, info.location_name)
+                if dropText then
+                    tooltip:AddLine("    " .. dropText)
+                end
+            end
         elseif info.type == "trinket" then
             local tierColor = TIER_COLORS[info.tier] or "|cFFFFFFFF"
             local text = string.format(
@@ -179,6 +192,13 @@ function WOWRN:AddTooltipLine(tooltip, itemId)
                 info.tier
             )
             tooltip:AddLine(text)
+            
+            if info.source_type then
+                local dropText = self:GetDropLocationText(info.source_type, info.boss_name, info.location_name)
+                if dropText then
+                    tooltip:AddLine("    " .. dropText)
+                end
+            end
         elseif info.type == "cartel" then
             local text = string.format(
                 "  |cFF00CCFFCartel Chip|r %s",
@@ -186,6 +206,16 @@ function WOWRN:AddTooltipLine(tooltip, itemId)
             )
             tooltip:AddLine(text)
         end
+    end
+end
+
+function WOWRN:GetDropLocationText(sourceType, bossName, locationName)
+    if sourceType == "quest, vendor or crafted" then
+        return "|cFFFF8000Quest vendor or crafted Item|r"
+    elseif bossName and locationName then
+        return string.format("|cFF9D9D9DDropped by: %s - %s|r", bossName, locationName)
+    else
+        return nil
     end
 end
 
