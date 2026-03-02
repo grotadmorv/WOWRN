@@ -16,10 +16,6 @@ class TrinketItem(Item):
     tier: str = "Unknown"
 
 
-@dataclass(frozen=True)
-class CartelChipItem(Item):
-    details: str = ""
-
 
 @dataclass(frozen=True)
 class SlotItem(Item):
@@ -43,7 +39,6 @@ class SpecData:
     spec_name: str
     url: str = ""
     bis_lists: Dict[str, BisList] = field(default_factory=dict)
-    cartel_chips: List[CartelChipItem] = field(default_factory=list)
     trinket_tier_list: Optional[TrinketTierList] = None
     error: Optional[str] = None
 
@@ -80,10 +75,6 @@ class ScrapingResult:
                             ]
                             for ctx, bis in spec_data.bis_lists.items()
                         },
-                        "cartel_chips": [
-                            {"id": c.id, "name": c.name, "details": c.details}
-                            for c in spec_data.cartel_chips
-                        ],
                         "trinkets": (
                             {
                                 tier: [

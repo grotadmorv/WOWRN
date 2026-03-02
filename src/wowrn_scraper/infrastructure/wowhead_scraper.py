@@ -7,7 +7,6 @@ import requests
 
 from wowrn_scraper.domain.models import (
     BisList,
-    CartelChipItem,
     SlotItem,
     SpecData,
     TrinketItem,
@@ -55,7 +54,6 @@ class WowheadScraper:
             )
 
         bis_lists = self._parse_bis_items(markup, item_mapping)
-        cartel_chips = self._parse_cartel_chips(markup, item_mapping)
         trinket_tier_list = self._parse_trinkets(markup, item_mapping)
 
         time.sleep(self.delay)
@@ -65,7 +63,6 @@ class WowheadScraper:
             spec_name=spec_name,
             url=url,
             bis_lists=bis_lists,
-            cartel_chips=cartel_chips,
             trinket_tier_list=trinket_tier_list,
         )
 
@@ -201,110 +198,59 @@ class WowheadScraper:
             tab_name = tabs[i]
             content = tabs[i + 1]
 
-            if tab_name in ["Overall", "Raid", "Mythic+"]:
-                rows = re.findall(r"\[tr\](.*?)\[/tr\]", content, re.DOTALL)
-                items: List[SlotItem] = []
+            canonical = None
+            if tab_name.startswith("Overall"):
+                canonical = "Overall"
+            elif tab_name.startswith("Raid"):
+                canonical = "Raid"
+            elif tab_name.startswith("Mythic"):
+                canonical = "Mythic+"
+            else:
+                continue
 
-                for row in rows:
-                    cells = re.findall(r"\[td.*?\](.*?)\[/td\]", row, re.DOTALL)
-                    if not cells:
-                        continue
+            rows = re.findall(r"\[tr\](.*?)\[/tr\]", content, re.DOTALL)
+            items: List[SlotItem] = []
 
-                    row_item_id = None
-                    slot_name = "Unknown"
+            for row in rows:
+                cells = re.findall(r"\[td.*?\](.*?)\[/td\]", row, re.DOTALL)
+                if not cells:
+                    continue
 
-                    if len(cells) > 0:
-                        slot_match = re.search(r"\[b\](.*?)\[/b\]", cells[0])
-                        if slot_match:
-                            slot_name = slot_match.group(1)
-                        else:
-                            slot_name = re.sub(r"\[.*?\]", "", cells[0]).strip()
+                row_item_id = None
+                slot_name = "Unknown"
 
-                    for cell in cells:
-                        iid = self._parse_item_link(cell)
-                        if iid:
-                            row_item_id = iid
-                            break
+                if len(cells) > 0:
+                    slot_match = re.search(r"\[b\](.*?)\[/b\]", cells[0])
+                    if slot_match:
+                        slot_name = slot_match.group(1)
+                    else:
+                        slot_name = re.sub(r"\[.*?\]", "", cells[0]).strip()
 
-                    if row_item_id:
-                        items.append(
-                            SlotItem(
-                                id=row_item_id,
-                                name=self._get_item_name(row_item_id, item_mapping),
-                                slot=slot_name,
-                            )
-                        )
+                for cell in cells:
+                    iid = self._parse_item_link(cell)
+                    if iid:
+                        row_item_id = iid
+                        break
 
-                bis_data[tab_name] = BisList(context=tab_name, items=items)
-
-        return bis_data
-
-    def _parse_cartel_chips(
-        self, markup: str, item_mapping: Dict[str, str]
-    ) -> List[CartelChipItem]:
-        chips: List[CartelChipItem] = []
-        seen_ids: set = set()
-        if "Puzzling Cartel Chips" not in markup and "Cartel Chip" not in markup:
-            return chips
-
-        section = None
-        section_patterns = [
-            (r'toc="Puzzling Cartel Chips"\](.*?)(?:\[h2|\[h1|$)', re.DOTALL),
-            (r'Puzzling Cartel Chips\[/h2\](.*?)(?:\[h2|\[h1|$)', re.DOTALL),
-            (r'Cartel Chip[s]?\b(.*?)(?:\[h2|\[h1|$)', re.DOTALL | re.IGNORECASE),
-        ]
-
-        for pattern, flags in section_patterns:
-            match = re.search(pattern, markup, flags)
-            if match:
-                section = match.group(1)
-                break
-
-        if not section:
-            parts = markup.split('toc="Puzzling Cartel Chips"]')
-            if len(parts) >= 2:
-                section = parts[1]
-
-        if not section:
-            return chips
-
-        for list_pattern in [r"\[ol\](.*?)\[/ol\]", r"\[ul\](.*?)\[/ul\]"]:
-            list_match = re.search(list_pattern, section, re.DOTALL)
-            if list_match:
-                list_content = list_match.group(1)
-                lis = re.findall(r"\[li\](.*?)\[/li\]", list_content, re.DOTALL)
-                for li in lis:
-                    iid = self._parse_item_link(li)
-                    if iid and iid not in seen_ids:
-                        chips.append(
-                            CartelChipItem(
-                                id=iid,
-                                name=self._get_item_name(iid, item_mapping),
-                                details="Myth",
-                            )
-                        )
-                        seen_ids.add(iid)
-
-        if not chips:
-            item_ids = re.findall(r"\[item=(\d+)", section)
-            for iid in item_ids:
-                if iid not in seen_ids:
-                    chips.append(
-                        CartelChipItem(
-                            id=iid,
-                            name=self._get_item_name(iid, item_mapping),
-                            details="Myth",
+                if row_item_id:
+                    items.append(
+                        SlotItem(
+                            id=row_item_id,
+                            name=self._get_item_name(row_item_id, item_mapping),
+                            slot=slot_name,
                         )
                     )
-                    seen_ids.add(iid)
-        return chips
+
+            bis_data[canonical] = BisList(context=canonical, items=items)
+
+        return bis_data
 
     def _parse_trinkets(
         self, markup: str, item_mapping: Dict[str, str]
     ) -> TrinketTierList:
         trinkets: Dict[str, List[TrinketItem]] = {}
         match = re.search(
-            r"\[tier-list=rows\](.*?)\[/tier-list\]", markup, re.DOTALL
+            r"\[tier-list=rows[^\]]*\](.*?)\[/tier-list\]", markup, re.DOTALL
         )
         if match:
             content = match.group(1)
@@ -319,7 +265,7 @@ class WowheadScraper:
                 )
                 items: List[TrinketItem] = []
                 if cnt_match:
-                    item_ids = re.findall(r"item=(\d+)", cnt_match.group(1))
+                    item_ids = re.findall(r"(?:item|icon-badge)=(\d+)", cnt_match.group(1))
                     seen_ids: set = set()
                     for iid in item_ids:
                         if iid not in seen_ids:

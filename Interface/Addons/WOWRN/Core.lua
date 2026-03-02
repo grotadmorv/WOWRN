@@ -147,17 +147,6 @@ function WOWRN:GetBisInfo(itemId)
         end
     end
     
-    if specData.cartel_chips then
-        for _, item in ipairs(specData.cartel_chips) do
-            if item.id == itemId then
-                table.insert(bisInfo, {
-                    type = "cartel",
-                    details = item.details,
-                })
-            end
-        end
-    end
-
     return #bisInfo > 0 and bisInfo or nil
 end
 
@@ -199,12 +188,6 @@ function WOWRN:AddTooltipLine(tooltip, itemId)
                     tooltip:AddLine("    " .. dropText)
                 end
             end
-        elseif info.type == "cartel" then
-            local text = string.format(
-                "  |cFF00CCFFCartel Chip|r %s",
-                info.details or ""
-            )
-            tooltip:AddLine(text)
         end
     end
 end

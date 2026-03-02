@@ -281,12 +281,6 @@ local function ShowCustomTooltip(parent, itemData)
         tooltip.infoLines[lineIndex].value:SetTextColor(1, 0.82, 0)
         tooltip.infoLines[lineIndex]:Show()
         lineIndex = lineIndex + 1
-    elseif itemData.type == "cartel" then
-        tooltip.infoLines[lineIndex].label:SetText("Cartel Chip")
-        tooltip.infoLines[lineIndex].value:SetText(itemData.details or "Mythic")
-        tooltip.infoLines[lineIndex].value:SetTextColor(0.5, 0.8, 1)
-        tooltip.infoLines[lineIndex]:Show()
-        lineIndex = lineIndex + 1
     end
 
     if itemData.source_type then
@@ -397,17 +391,6 @@ local function BuildItemList()
             table.sort(currentItems, function(a, b)
                 return (tierOrder[a.tier] or 99) < (tierOrder[b.tier] or 99)
             end)
-        end
-    elseif selectedCategory == "cartel_chips" then
-        if specData.cartel_chips then
-            for _, item in ipairs(specData.cartel_chips) do
-                table.insert(currentItems, {
-                    id = item.id,
-                    name = item.name,
-                    details = item.details,
-                    type = "cartel",
-                })
-            end
         end
     end
 end
@@ -916,7 +899,6 @@ function CatalogUI:UpdateCategoryTabs()
     local tabs = {
         { key = "bis", name = "Best in Slot" },
         { key = "trinkets", name = "Trinkets" },
-        { key = "cartel_chips", name = "Cartel Chips" },
     }
     
     local xOffset = 0
