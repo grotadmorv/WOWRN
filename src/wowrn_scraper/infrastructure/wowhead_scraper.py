@@ -21,13 +21,29 @@ class WowheadScraper:
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/91.0.4472.124 Safari/537.36"
-        )
+            "Chrome/134.0.0.0 Safari/537.36"
+        ),
+        "Accept": (
+            "text/html,application/xhtml+xml,application/xml;"
+            "q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8"
+        ),
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Referer": "https://www.wowhead.com/",
+        "DNT": "1",
+        "Connection": "keep-alive",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "same-origin",
+        "Sec-Fetch-User": "?1",
+        "Upgrade-Insecure-Requests": "1",
     }
 
     def __init__(self, delay: float = 1.0) -> None:
         self.delay = delay
         self._item_name_cache: Dict[str, str] = {}
+        self.session = requests.Session()
+        self.session.headers.update(self.HEADERS)
 
     def scrape_spec(self, class_name: str, spec_name: str) -> SpecData:
         url = f"{self.BASE_URL}/{class_name}/{spec_name}/bis-gear"
@@ -68,7 +84,11 @@ class WowheadScraper:
 
     def _get_html(self, url: str) -> Optional[str]:
         try:
-            response = requests.get(url, headers=self.HEADERS)
+            response = self.session.get(url)
+            if response.status_code == 403:
+                print(f"  Got 403, retrying in 5s...")
+                time.sleep(5)
+                response = self.session.get(url)
             response.raise_for_status()
             return response.text
         except requests.RequestException as e:
@@ -81,8 +101,8 @@ class WowheadScraper:
 
         try:
             url = f"{self.ITEM_URL}={item_id}"
-            response = requests.get(
-                url, headers=self.HEADERS, allow_redirects=True, timeout=10
+            response = self.session.get(
+                url, allow_redirects=True, timeout=10
             )
             if response.status_code == 200:
                 final_url = response.url
