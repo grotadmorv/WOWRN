@@ -42,6 +42,7 @@ class WowheadScraper:
     def __init__(self, delay: float = 1.0) -> None:
         self.delay = delay
         self._item_name_cache: Dict[str, str] = {}
+        self._item_source_cache: Dict[str, Dict[str, Optional[str]]] = {}
         self.session = requests.Session()
         self.session.headers.update(self.HEADERS)
 
@@ -200,6 +201,71 @@ class WowheadScraper:
 
         return " ".join(result)
 
+    def _parse_source_cell(self, cell: str) -> Dict[str, Optional[str]]:
+        """Extract source info from a BiS table's Source column cell."""
+        # Clean BBCode tags to get the text
+        source_text = re.sub(r"\[/?\w[^\]]*\]", "", cell).strip()
+        if not source_text:
+            return {
+                "source_type": None,
+                "boss_name": None,
+                "location_name": None,
+            }
+
+        # Identify source type from common keywords
+        lower = source_text.lower()
+        if "crafting" in lower or "profession" in lower:
+            return {
+                "source_type": "crafting",
+                "boss_name": None,
+                "location_name": source_text,
+            }
+        elif "vault" in lower or "great vault" in lower:
+            return {
+                "source_type": "vault",
+                "boss_name": None,
+                "location_name": source_text,
+            }
+
+        # Check for known dungeon names from the M+ pool
+        dungeon_keywords = [
+            "temple of sethraliss", "king's rest", "kings rest",
+            "altar of fangs", "blinding vale", "voidscar arena",
+            "priory", "rookery", "darkflame cleft", "cinderbrew",
+            "theater of pain", "halls of atonement",
+            "mists of tirna", "stonevault", "city of threads",
+            "grim batol", "siege of boralus", "necrotic wake",
+            "tidebound grotto",
+        ]
+        for kw in dungeon_keywords:
+            if kw in lower:
+                return {
+                    "source_type": "dungeon",
+                    "boss_name": None,
+                    "location_name": source_text,
+                }
+
+        # Default: assume it's a raid boss/encounter name
+        return {
+            "source_type": "raid",
+            "boss_name": source_text,
+            "location_name": source_text,
+        }
+
+    def _canonicalize_tab_name(self, tab_name: str) -> str:
+        """Canonicalize a BiS tab name to a standard context key."""
+        lower = tab_name.lower()
+        if "overall" in lower:
+            return "Overall"
+        elif "raid" in lower:
+            return "Raid"
+        elif "mythic" in lower:
+            return "Mythic+"
+        # For hero-talent-specific tabs (e.g. "Deathbringer BiS"),
+        # use the tab name stripped of " BiS" as the context key.
+        cleaned = re.sub(r"\s*BiS\s*$", "", tab_name, flags=re.IGNORECASE).strip()
+        return cleaned if cleaned else tab_name
+
     def _parse_bis_items(
         self, markup: str, item_mapping: Dict[str, str]
     ) -> Dict[str, BisList]:
@@ -218,15 +284,7 @@ class WowheadScraper:
             tab_name = tabs[i]
             content = tabs[i + 1]
 
-            canonical = None
-            if tab_name.startswith("Overall"):
-                canonical = "Overall"
-            elif tab_name.startswith("Raid"):
-                canonical = "Raid"
-            elif tab_name.startswith("Mythic"):
-                canonical = "Mythic+"
-            else:
-                continue
+            canonical = self._canonicalize_tab_name(tab_name)
 
             rows = re.findall(r"\[tr\](.*?)\[/tr\]", content, re.DOTALL)
             items: List[SlotItem] = []
@@ -252,18 +310,86 @@ class WowheadScraper:
                         row_item_id = iid
                         break
 
+                # Parse source from the 3rd column if available
+                source_info: Dict[str, Optional[str]] = {
+                    "source_type": None,
+                    "boss_name": None,
+                    "location_name": None,
+                }
+                if len(cells) >= 3:
+                    source_info = self._parse_source_cell(cells[2])
+
                 if row_item_id:
+                    if source_info["source_type"]:
+                        self._item_source_cache[row_item_id] = source_info
                     items.append(
                         SlotItem(
                             id=row_item_id,
                             name=self._get_item_name(row_item_id, item_mapping),
                             slot=slot_name,
+                            source_type=source_info["source_type"],
+                            boss_name=source_info["boss_name"],
+                            location_name=source_info["location_name"],
                         )
                     )
 
             bis_data[canonical] = BisList(context=canonical, items=items)
 
         return bis_data
+
+    def _fetch_item_source_from_wowhead_xml(
+        self, item_id: str
+    ) -> Dict[str, Optional[str]]:
+        url = f"https://www.wowhead.com/item={item_id}?xml"
+        try:
+            r = self.session.get(url, timeout=5)
+            if r.status_code == 200:
+                import xml.etree.ElementTree as ET
+                root = ET.fromstring(r.text)
+                item_el = root.find("item")
+                if item_el is not None:
+                    json_text = item_el.findtext("json")
+                    source_type = None
+                    boss_name = None
+                    location_name = None
+                    if json_text:
+                        obj = json.loads("{" + json_text + "}")
+                        sourcemore = obj.get("sourcemore")
+                        if sourcemore and isinstance(sourcemore, list) and len(sourcemore) > 0:
+                            first_source = sourcemore[0]
+                            boss_name = first_source.get("n")
+                            location_name = boss_name
+                            source_type = "raid" if ("z" in first_source or "bd" in first_source or "t" in first_source) else "dungeon"
+                        source_arr = obj.get("source")
+                        if not source_type and source_arr:
+                            if 2 in source_arr or 1 in source_arr:
+                                source_type = "raid"
+                            elif 4 in source_arr:
+                                source_type = "crafting"
+                            elif 5 in source_arr:
+                                source_type = "quest"
+
+                    return {
+                        "source_type": source_type,
+                        "boss_name": boss_name,
+                        "location_name": location_name,
+                    }
+        except Exception:
+            pass
+
+        return {
+            "source_type": None,
+            "boss_name": None,
+            "location_name": None,
+        }
+
+    def _get_item_source(self, item_id: str) -> Dict[str, Optional[str]]:
+        if item_id in self._item_source_cache and self._item_source_cache[item_id].get("source_type"):
+            return self._item_source_cache[item_id]
+
+        info = self._fetch_item_source_from_wowhead_xml(item_id)
+        self._item_source_cache[item_id] = info
+        return info
 
     def _parse_trinkets(
         self, markup: str, item_mapping: Dict[str, str]
@@ -289,11 +415,15 @@ class WowheadScraper:
                     seen_ids: set = set()
                     for iid in item_ids:
                         if iid not in seen_ids:
+                            src_info = self._get_item_source(iid)
                             items.append(
                                 TrinketItem(
                                     id=iid,
                                     name=self._get_item_name(iid, item_mapping),
                                     tier=rank,
+                                    source_type=src_info["source_type"],
+                                    boss_name=src_info["boss_name"],
+                                    location_name=src_info["location_name"],
                                 )
                             )
                             seen_ids.add(iid)

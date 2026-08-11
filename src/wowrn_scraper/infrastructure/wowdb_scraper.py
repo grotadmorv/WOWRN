@@ -108,32 +108,45 @@ class WowdbScraper:
             print(f"    Processing batch {batch_num}/{total_batches} ({len(batch)} items)...")
 
             for item in batch:
+                # If item already has a specific source_type from Wowhead and WowDB is likely to fail/fallback,
+                # we can use WowDB to enrich only if it finds specific boss/location info.
                 loot_info = self.get_item_loot_info(item.id)
+                
+                final_source_type = loot_info["source_type"]
+                final_boss_name = loot_info["boss_name"]
+                final_location_name = loot_info["location_name"]
+
+                if item.source_type and item.source_type != "quest, vendor or crafted":
+                    if final_source_type == "quest, vendor or crafted" or not final_boss_name:
+                        final_source_type = item.source_type
+                        final_boss_name = item.boss_name or final_boss_name
+                        final_location_name = item.location_name or final_location_name
+
                 if isinstance(item, SlotItem):
                     enriched_item = SlotItem(
                         id=item.id,
                         name=item.name,
                         slot=item.slot,
-                        source_type=loot_info["source_type"],
-                        boss_name=loot_info["boss_name"],
-                        location_name=loot_info["location_name"],
+                        source_type=final_source_type,
+                        boss_name=final_boss_name,
+                        location_name=final_location_name,
                     )
                 elif isinstance(item, TrinketItem):
                     enriched_item = TrinketItem(
                         id=item.id,
                         name=item.name,
                         tier=item.tier,
-                        source_type=loot_info["source_type"],
-                        boss_name=loot_info["boss_name"],
-                        location_name=loot_info["location_name"],
+                        source_type=final_source_type,
+                        boss_name=final_boss_name,
+                        location_name=final_location_name,
                     )
                 else:
                     enriched_item = Item(
                         id=item.id,
                         name=item.name,
-                        source_type=loot_info["source_type"],
-                        boss_name=loot_info["boss_name"],
-                        location_name=loot_info["location_name"],
+                        source_type=final_source_type,
+                        boss_name=final_boss_name,
+                        location_name=final_location_name,
                     )
 
                 enriched.append(enriched_item)
