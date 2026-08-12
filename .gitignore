@@ -4,3 +4,4 @@ src/wowrn_scraper/infrastructure/__pycache__/*
 src/wowrn_scraper/application/__pycache__/*
 src/wowrn_scraper/data/*
 Interface/Addons/WOWRN/Data.lua
+tests/__pycache__/

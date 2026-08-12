@@ -82,7 +82,9 @@ local TIER_COLORS = {
     ["B"] = "|cFF0070DD",
     ["C"] = "|cFF1EFF00",
     ["D"] = "|cFFFFFFFF",
+    ["E"] = "|cFF9D9D9D",
     ["F"] = "|cFF9D9D9D",
+    ["G"] = "|cFF9D9D9D",
 }
 
 local playerClass = nil
@@ -174,7 +176,8 @@ function WOWRN:AddTooltipLine(tooltip, itemId)
                 end
             end
         elseif info.type == "trinket" then
-            local tierColor = TIER_COLORS[info.tier] or "|cFFFFFFFF"
+            local tierLetter = tostring(info.tier or ""):upper():match("([SABCDEFG])")
+            local tierColor = TIER_COLORS[tierLetter] or "|cFFFFFFFF"
             local text = string.format(
                 "  Trinket Tier: %s%s|r",
                 tierColor,

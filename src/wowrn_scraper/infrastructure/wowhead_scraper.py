@@ -1,6 +1,8 @@
 import json
+import os
 import re
 import time
+import xml.etree.ElementTree as ET
 from typing import Dict, List, Optional
 
 import requests
@@ -39,18 +41,58 @@ class WowheadScraper:
         "Upgrade-Insecure-Requests": "1",
     }
 
-    def __init__(self, delay: float = 1.0) -> None:
+    def __init__(
+        self,
+        delay: float = 1.0,
+        min_interval: float = 0.4,
+        cache_path: Optional[str] = None,
+    ) -> None:
         self.delay = delay
+        self.min_interval = min_interval
+        self._last_request = 0.0
         self._item_name_cache: Dict[str, str] = {}
         self._item_source_cache: Dict[str, Dict[str, Optional[str]]] = {}
         self.session = requests.Session()
         self.session.headers.update(self.HEADERS)
 
+        if cache_path is None:
+            base_dir = os.path.dirname(
+                os.path.dirname(os.path.abspath(__file__))
+            )
+            cache_path = os.path.join(
+                base_dir, "data", "wowhead_item_cache.json"
+            )
+        self.cache_path = cache_path
+        self._load_item_cache()
+
+    def _load_item_cache(self) -> None:
+        try:
+            with open(self.cache_path, "r", encoding="utf-8") as f:
+                cache = json.load(f)
+            self._item_name_cache = cache.get("names", {})
+            self._item_source_cache = cache.get("sources", {})
+        except (OSError, json.JSONDecodeError):
+            pass
+
+    def save_item_cache(self) -> None:
+        os.makedirs(os.path.dirname(self.cache_path), exist_ok=True)
+        with open(self.cache_path, "w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "names": self._item_name_cache,
+                    "sources": self._item_source_cache,
+                },
+                f,
+                indent=2,
+                ensure_ascii=False,
+            )
+
     def scrape_spec(self, class_name: str, spec_name: str) -> SpecData:
         url = f"{self.BASE_URL}/{class_name}/{spec_name}/bis-gear"
         print(f"Scraping {spec_name} {class_name}...")
 
-        html = self._get_html(url)
+        response = self._request(url, timeout=30)
+        html = response.text if response else None
         if not html:
             return SpecData(
                 class_name=class_name,
@@ -73,6 +115,7 @@ class WowheadScraper:
         bis_lists = self._parse_bis_items(markup, item_mapping)
         trinket_tier_list = self._parse_trinkets(markup, item_mapping)
 
+        self.save_item_cache()
         time.sleep(self.delay)
 
         return SpecData(
@@ -83,39 +126,89 @@ class WowheadScraper:
             trinket_tier_list=trinket_tier_list,
         )
 
-    def _get_html(self, url: str) -> Optional[str]:
-        try:
-            response = self.session.get(url)
-            if response.status_code == 403:
-                print(f"  Got 403, retrying in 5s...")
-                time.sleep(5)
-                response = self.session.get(url)
-            response.raise_for_status()
-            return response.text
-        except requests.RequestException as e:
-            print(f"Error fetching {url}: {e}")
-            return None
-
-    def _fetch_item_name(self, item_id: str) -> Optional[str]:
-        if item_id in self._item_name_cache:
-            return self._item_name_cache[item_id]
-
-        try:
-            url = f"{self.ITEM_URL}={item_id}"
-            response = self.session.get(
-                url, allow_redirects=True, timeout=10
-            )
-            if response.status_code == 200:
-                final_url = response.url
-                if "/" in final_url.split("item=")[-1]:
-                    slug = final_url.split("/")[-1].split("?")[0]
-                    if slug and slug != str(item_id):
-                        name = self._slug_to_name(slug)
-                        self._item_name_cache[item_id] = name
-                        return name
-        except requests.RequestException:
-            pass
+    def _request(
+        self, url: str, timeout: int = 15, tries: int = 4
+    ) -> Optional[requests.Response]:
+        """GET with throttling and backoff on Wowhead rate-limit codes."""
+        for attempt in range(tries):
+            wait = self.min_interval - (time.time() - self._last_request)
+            if wait > 0:
+                time.sleep(wait)
+            try:
+                response = self.session.get(url, timeout=timeout)
+                self._last_request = time.time()
+                if response.status_code in (403, 429, 500, 502, 503):
+                    backoff = 5 * (2 ** attempt)
+                    print(
+                        f"  {response.status_code} on {url}, "
+                        f"retrying in {backoff}s..."
+                    )
+                    time.sleep(backoff)
+                    continue
+                response.raise_for_status()
+                return response
+            except requests.RequestException as e:
+                self._last_request = time.time()
+                if attempt == tries - 1:
+                    print(f"Error fetching {url}: {e}")
+                    return None
+                time.sleep(2 ** attempt)
+        print(f"Error fetching {url}: rate limited after {tries} tries")
         return None
+
+    def _fetch_item_xml(self, item_id: str) -> None:
+        """Fetch name + source for an item in one XML call, then cache both."""
+        response = self._request(f"{self.ITEM_URL}={item_id}&xml", timeout=10)
+        if not response:
+            return
+
+        try:
+            root = ET.fromstring(response.text)
+        except ET.ParseError:
+            return
+
+        item_el = root.find("item")
+        if item_el is None:
+            return
+
+        name = (item_el.findtext("name") or "").strip()
+        if name:
+            self._item_name_cache[item_id] = name
+
+        source_type = None
+        boss_name = None
+        location_name = None
+        json_text = item_el.findtext("json")
+        if json_text:
+            try:
+                obj = json.loads("{" + json_text + "}")
+            except json.JSONDecodeError:
+                obj = {}
+            sourcemore = obj.get("sourcemore")
+            if isinstance(sourcemore, list) and sourcemore:
+                first_source = sourcemore[0]
+                boss_name = first_source.get("n")
+                location_name = boss_name
+                source_type = (
+                    "raid"
+                    if ("z" in first_source or "bd" in first_source
+                        or "t" in first_source)
+                    else "dungeon"
+                )
+            source_arr = obj.get("source")
+            if not source_type and source_arr:
+                if 2 in source_arr or 1 in source_arr:
+                    source_type = "raid"
+                elif 4 in source_arr:
+                    source_type = "crafting"
+                elif 5 in source_arr:
+                    source_type = "quest"
+
+        self._item_source_cache[item_id] = {
+            "source_type": source_type,
+            "boss_name": boss_name,
+            "location_name": location_name,
+        }
 
     def _get_item_name(
         self, item_id: str, item_mapping: Dict[str, str]
@@ -123,14 +216,12 @@ class WowheadScraper:
         if item_id in item_mapping:
             return item_mapping[item_id]
 
-        if item_id in self._item_name_cache:
-            return self._item_name_cache[item_id]
+        if item_id not in self._item_name_cache:
+            self._fetch_item_xml(item_id)
 
-        name = self._fetch_item_name(item_id)
-        if name:
-            return name
-
-        return f"Item {item_id}"
+        # Failures are not cached, so a rerun retries instead of freezing
+        # "Item 12345" into the data forever.
+        return self._item_name_cache.get(item_id, f"Item {item_id}")
 
     def _extract_item_mapping_from_anchors(self, html: str) -> Dict[str, str]:
         mapping: Dict[str, str] = {}
@@ -155,8 +246,10 @@ class WowheadScraper:
         mapping: Dict[str, str] = {}
         anchor_mapping = self._extract_item_mapping_from_anchors(html)
         mapping.update(anchor_mapping)
+        # Type 3 is "item"; the second argument varies per page section, so
+        # match them all or half the items end up unnamed.
         pattern = re.compile(
-            r"WH\.Gatherer\.addData\(3, 1,\s*({.*?})\);", re.DOTALL
+            r"WH\.Gatherer\.addData\(\s*3\s*,\s*\d+\s*,\s*({.*?})\);", re.DOTALL
         )
         matches = pattern.findall(html)
         for json_str in matches:
@@ -337,58 +430,45 @@ class WowheadScraper:
 
         return bis_data
 
-    def _fetch_item_source_from_wowhead_xml(
-        self, item_id: str
+    BADGE_SOURCE_TYPES = {
+        "raid": "raid",
+        "dungeon": "dungeon",
+        "crafting": "crafting",
+        "delves": "delves",
+        "pvp": "pvp",
+        "profession": "crafting",
+        "vault": "vault",
+    }
+
+    def _source_from_badge(
+        self, item_id: str, attrs: str
     ) -> Dict[str, Optional[str]]:
-        url = f"https://www.wowhead.com/item={item_id}?xml"
-        try:
-            r = self.session.get(url, timeout=5)
-            if r.status_code == 200:
-                import xml.etree.ElementTree as ET
-                root = ET.fromstring(r.text)
-                item_el = root.find("item")
-                if item_el is not None:
-                    json_text = item_el.findtext("json")
-                    source_type = None
-                    boss_name = None
-                    location_name = None
-                    if json_text:
-                        obj = json.loads("{" + json_text + "}")
-                        sourcemore = obj.get("sourcemore")
-                        if sourcemore and isinstance(sourcemore, list) and len(sourcemore) > 0:
-                            first_source = sourcemore[0]
-                            boss_name = first_source.get("n")
-                            location_name = boss_name
-                            source_type = "raid" if ("z" in first_source or "bd" in first_source or "t" in first_source) else "dungeon"
-                        source_arr = obj.get("source")
-                        if not source_type and source_arr:
-                            if 2 in source_arr or 1 in source_arr:
-                                source_type = "raid"
-                            elif 4 in source_arr:
-                                source_type = "crafting"
-                            elif 5 in source_arr:
-                                source_type = "quest"
+        """Read the source from the tier-list badge's display-options.
 
-                    return {
-                        "source_type": source_type,
-                        "boss_name": boss_name,
-                        "location_name": location_name,
-                    }
-        except Exception:
-            pass
+        Wowhead tags each trinket badge with `display-options=raid` (etc.),
+        so no per-item request is needed here — hammering the item API is
+        what gets the scraper 403'd mid-run. Boss and location are filled in
+        later by the WowDB enrichment pass.
+        """
+        cached = self._item_source_cache.get(item_id)
+        if cached and cached.get("source_type"):
+            return cached
 
-        return {
-            "source_type": None,
+        source_type = None
+        option_match = re.search(r"display-options=([a-z,\-]+)", attrs)
+        if option_match:
+            for option in option_match.group(1).split(","):
+                source_type = self.BADGE_SOURCE_TYPES.get(option.strip())
+                if source_type:
+                    break
+
+        info: Dict[str, Optional[str]] = {
+            "source_type": source_type,
             "boss_name": None,
             "location_name": None,
         }
-
-    def _get_item_source(self, item_id: str) -> Dict[str, Optional[str]]:
-        if item_id in self._item_source_cache and self._item_source_cache[item_id].get("source_type"):
-            return self._item_source_cache[item_id]
-
-        info = self._fetch_item_source_from_wowhead_xml(item_id)
-        self._item_source_cache[item_id] = info
+        if source_type:
+            self._item_source_cache[item_id] = info
         return info
 
     def _parse_trinkets(
@@ -403,19 +483,26 @@ class WowheadScraper:
             tiers = re.findall(r"\[tier\](.*?)\[/tier\]", content, re.DOTALL)
             for tier in tiers:
                 rank_match = re.search(
-                    r"\[tier-label.*?\](.*?)\[/tier-label\]", tier
+                    r"\[tier-label[^\]]*\](.*?)\[/tier-label\]",
+                    tier,
+                    re.DOTALL,
                 )
-                rank = rank_match.group(1) if rank_match else "Unknown"
+                rank = (
+                    rank_match.group(1).strip() if rank_match else "Unknown"
+                )
                 cnt_match = re.search(
                     r"\[tier-content\](.*?)\[/tier-content\]", tier, re.DOTALL
                 )
                 items: List[TrinketItem] = []
                 if cnt_match:
-                    item_ids = re.findall(r"(?:item|icon-badge)=(\d+)", cnt_match.group(1))
+                    badges = re.findall(
+                        r"\[(?:item|icon-badge)=(\d+)([^\]]*)\]",
+                        cnt_match.group(1),
+                    )
                     seen_ids: set = set()
-                    for iid in item_ids:
+                    for iid, attrs in badges:
                         if iid not in seen_ids:
-                            src_info = self._get_item_source(iid)
+                            src_info = self._source_from_badge(iid, attrs)
                             items.append(
                                 TrinketItem(
                                     id=iid,

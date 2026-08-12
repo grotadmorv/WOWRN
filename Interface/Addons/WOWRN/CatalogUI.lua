@@ -82,8 +82,29 @@ local TIER_COLORS = {
     ["B"] = { r = 0, g = 0.44, b = 0.87 },   -- Blue
     ["C"] = { r = 0.12, g = 1, b = 0 },      -- Green
     ["D"] = { r = 1, g = 1, b = 1 },         -- White
+    ["E"] = { r = 0.62, g = 0.62, b = 0.62 }, -- Gray
     ["F"] = { r = 0.62, g = 0.62, b = 0.62 }, -- Gray
+    ["G"] = { r = 0.62, g = 0.62, b = 0.62 }, -- Gray
 }
+
+-- Wowhead uses modifiers like "S+" / "B-"; rank on the letter, break ties
+-- with the modifier so "S+" sorts above "S".
+local TIER_RANK = { S = 1, A = 2, B = 3, C = 4, D = 5, E = 6, F = 7, G = 8 }
+
+local function SplitTier(tier)
+    return tostring(tier or ""):upper():match("^%s*([SABCDEFG])%s*([%+%-]?)%s*$")
+end
+
+local function TierOrder(tier)
+    local letter, modifier = SplitTier(tier)
+    if not letter then return 99 end
+    return TIER_RANK[letter] + (modifier == "+" and -0.25 or modifier == "-" and 0.25 or 0)
+end
+
+local function TierColor(tier)
+    local letter = SplitTier(tier)
+    return TIER_COLORS[letter] or TIER_COLORS["D"]
+end
 
 local DATA_SOURCES = {
     { key = "wowhead", name = "WoWHead", color = {1, 0.5, 0}, available = true },
@@ -263,7 +284,7 @@ local function ShowCustomTooltip(parent, itemData)
     local lineIndex = 1
 
     if itemData.type == "trinket" then
-        local tierColor = TIER_COLORS[itemData.tier] or TIER_COLORS["D"]
+        local tierColor = TierColor(itemData.tier)
         tooltip.infoLines[lineIndex].label:SetText("Tier Ranking")
         tooltip.infoLines[lineIndex].value:SetText(itemData.tier .. " Tier")
         tooltip.infoLines[lineIndex].value:SetTextColor(tierColor.r, tierColor.g, tierColor.b)
@@ -387,9 +408,8 @@ local function BuildItemList()
                     })
                 end
             end
-            local tierOrder = { S = 1, A = 2, B = 3, C = 4, D = 5, F = 6 }
             table.sort(currentItems, function(a, b)
-                return (tierOrder[a.tier] or 99) < (tierOrder[b.tier] or 99)
+                return TierOrder(a.tier) < TierOrder(b.tier)
             end)
         end
     end
@@ -745,7 +765,7 @@ local function CreateItemRow(parent, item, yOffset)
     indicator:SetJustifyH("CENTER")
 
     if item.type == "trinket" then
-        local tierColor = TIER_COLORS[item.tier] or TIER_COLORS["D"]
+        local tierColor = TierColor(item.tier)
         indicator:SetText(item.tier .. " Tier")
         indicator:SetTextColor(tierColor.r, tierColor.g, tierColor.b)
         indicatorBg:SetColorTexture(tierColor.r * 0.2, tierColor.g * 0.2, tierColor.b * 0.2, 0.6)
